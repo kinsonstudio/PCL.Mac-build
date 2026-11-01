@@ -44,31 +44,29 @@ fileprivate struct LeftTab: View {
             dataManager.router.append(.accountManagement)
         }
     }
-    
+
+    private func launchButtonTexts(_ instance: MinecraftInstance) -> (title: String, description: String?) {
+        switch launchState.phase {
+        case .preparing:
+            return ("正在准备…", launchState.statusText.isEmpty ? "正在检查环境与资源……" : launchState.statusText)
+        case .waitingWindow:
+            return ("等待窗口拉起", launchState.statusText.isEmpty ? "游戏已启动，正在等待窗口拉起……" : launchState.statusText)
+        case .windowShown:
+            return ("游戏运行中", "游戏窗口已出现")
+        case .finished, .idle:
+            return ("启动游戏", instance.name)
+        }
+    }
+
     var body: some View {
         VStack {
             Spacer()
             accountView
             Spacer()
             if let instance = self.instance {
-                let buttonText: String
-                let descriptionText: String?
-                switch launchState.phase {
-                case .preparing:
-                    buttonText = "正在准备…"
-                    descriptionText = launchState.statusText.isEmpty ? "正在检查环境与资源……" : launchState.statusText
-                case .waitingWindow:
-                    buttonText = "等待窗口拉起"
-                    descriptionText = launchState.statusText.isEmpty ? "游戏已启动，正在等待窗口拉起……" : launchState.statusText
-                case .windowShown:
-                    buttonText = "游戏运行中"
-                    descriptionText = "游戏窗口已出现"
-                case .finished, .idle:
-                    buttonText = "启动游戏"
-                    descriptionText = instance.name
-                }
+                let texts = launchButtonTexts(instance)
 
-                MyButton(text: buttonText, descriptionText: descriptionText, foregroundStyle: AppSettings.shared.theme.getTextStyle()) {
+                MyButton(text: texts.title, descriptionText: texts.description, foregroundStyle: AppSettings.shared.theme.getTextStyle()) {
                     if launchState.isBusy { return }
                     let launchOptions: LaunchOptions = .init()
 

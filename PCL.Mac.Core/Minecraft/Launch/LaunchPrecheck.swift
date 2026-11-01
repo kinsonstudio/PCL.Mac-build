@@ -38,13 +38,13 @@ public class LaunchPrecheck {
             return .failure(.invalidMemoryConfiguration)
         }
         
-        // 当前已选 Java：未选择、文件丢失或系统 stub 时才自动挑选；
-        // 用户手动选定的 JDK 一律尊重，不静默切换（版本不达标仅警告，由用户自行决定更换）
+        // 当前已选 Java：仅在从未选择或所选文件丢失时才自动挑选；
+        // 用户手动选定的 JDK（包括系统 /usr/bin/java）一律尊重，不静默切换；
+        // 版本 / 架构不达标仅警告，由用户自行决定是否更换。
         let currentPath = instance.config.javaURL?.path
         let currentJvm = DataManager.shared.javaVirtualMachines.first { $0.executableURL.path == currentPath }
         let fileMissing = (currentPath == nil) || !FileManager.default.fileExists(atPath: currentPath!)
-        let isStub = currentPath == "/usr/bin/java"
-        let needsAutoSelect = fileMissing || isStub
+        let needsAutoSelect = fileMissing
 
         if needsAutoSelect {
             guard let suitableJava else {

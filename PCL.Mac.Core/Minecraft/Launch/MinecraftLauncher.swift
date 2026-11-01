@@ -141,16 +141,60 @@ public class MinecraftLauncher {
             "-Djna.tmpdir=${natives_directory}"
         ]
 
-        // HMCL 风格 G1GC 调优：降低游戏运行中的 GC 停顿，缓解卡顿
+        // 参照 HMCL (DefaultLauncher.generateCommandLine) 的默认优化 JVM 参数
+        let javaMajor = instance.manifest.javaVersion ?? 21
+
+        // G1GC 调优：降低游戏运行中的 GC 停顿，缓解卡顿
         args.append(contentsOf: [
-            "-XX:+UseG1GC",
             "-XX:+UnlockExperimentalVMOptions",
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+UseG1GC",
+            "-XX:G1MixedGCCountTarget=5",
             "-XX:G1NewSizePercent=20",
             "-XX:G1ReservePercent=20",
             "-XX:MaxGCPauseMillis=50",
-            "-XX:+DisableExplicitGC",
-            "-XX:-UseAdaptiveSizePolicy"
+            "-XX:G1HeapRegionSize=32m",
+            "-XX:-OmitStackTraceInFastThrow",
+            "-XX:+DisableExplicitGC"
         ])
+
+        // 物理内存大于 4GB 时，启用 HMCL 同款 JIT 代码缓存调优，减少编译卡顿
+        if ProcessInfo.processInfo.physicalMemory > UInt64(4 * 1024 * 1024 * 1024) {
+            args.append(contentsOf: [
+                "-XX:-DontCompileHugeMethods",
+                "-XX:MaxNodeLimit=240000",
+                "-XX:NodeLimitFudgeFactor=8000",
+                "-XX:TieredCompileTaskTimeout=10000",
+                "-XX:ReservedCodeCacheSize=400M",
+                "-XX:NmethodSweepActivity=1"
+            ])
+            if javaMajor >= 9 {
+                args.append(contentsOf: [
+                    "-XX:NonNMethodCodeHeapSize=12M",
+                    "-XX:ProfiledCodeHeapSize=194M"
+                ])
+            }
+        }
+
+        // Java 24/25 放宽 sun.misc.Unsafe 访问，避免告警导致的降级与停顿
+        if javaMajor == 24 || javaMajor == 25 {
+            args.append("--sun-misc-unsafe-memory-access=allow")
+        }
+
+        // log4j2 RCE 防护（HMCL 同款）
+        args.append(contentsOf: [
+            "-Djava.rmi.server.useCodebaseOnly=true",
+            "-Dcom.sun.jndi.rmi.object.trustURLCodebase=false",
+            "-Dcom.sun.jndi.cosnaming.object.trustURLCodebase=false",
+            "-Dlog4j2.formatMsgNoLookups=true"
+        ])
+
+        // 客户端 jar 路径与 Mac Dock 标题
+        let clientJar = instance.runningDirectory.appending(path: "\(instance.name).jar")
+        args.append("-Dminecraft.client.jar=\(clientJar.path)")
+        #if os(macOS)
+        args.append("-Xdock:name=Minecraft \(instance.version!.displayName)")
+        #endif
 
         args.insert(contentsOf: options.yggdrasilArguments, at: 0)
         args.append(contentsOf: instance.manifest.getArguments().getAllowedJVMArguments())

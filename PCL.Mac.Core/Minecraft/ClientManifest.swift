@@ -234,7 +234,11 @@ public class ClientManifest {
             }
             public func match() -> Bool {
                 if let name, name != "osx" { return false }
-                // TODO: 处理 arch
+                // 按 CPU 架构过滤（如 -Xss1M 仅 x86），避免给 arm64 注入 x86 专属参数
+                if let arch {
+                    let target = Architecture.fromString(arch)
+                    if target != .unknown, target != Architecture.system { return false }
+                }
                 return true
             }
         }

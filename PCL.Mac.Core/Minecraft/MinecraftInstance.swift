@@ -91,8 +91,8 @@ public class MinecraftInstance: Identifiable, Equatable, Hashable {
             config.minecraftVersion = version.displayName
         }
         
-        // 寻找可用 Java
-        if self.config.javaURL == nil, let jvm = MinecraftInstance.findSuitableJava(self.version!) {
+        // 寻找可用 Java（优先按清单声明的 Java 主版本号）
+        if self.config.javaURL == nil, let jvm = MinecraftInstance.findSuitableJava(self.version!, manifest: self.manifest) {
             self.config.javaURL = jvm.executableURL
         }
         self.saveConfig()
@@ -130,7 +130,11 @@ public class MinecraftInstance: Identifiable, Equatable, Hashable {
         }
     }
     
-    public static func getMinJavaVersion(_ version: MinecraftVersion) -> Int {
+    public static func getMinJavaVersion(_ version: MinecraftVersion, manifest: ClientManifest? = nil) -> Int {
+        // 优先使用版本清单声明的 Java 主版本号（最准确）；清单缺失时再按发布日期估算
+        if let major = manifest?.javaVersion, major > 0 {
+            return major
+        }
         if version >= RequiredJava21 {
             return 21
         } else if version >= RequiredJava17 {
@@ -142,8 +146,8 @@ public class MinecraftInstance: Identifiable, Equatable, Hashable {
         }
     }
     
-    public static func findSuitableJava(_ version: MinecraftVersion) -> JavaVirtualMachine? {
-        let minJavaVersion = getMinJavaVersion(version)
+    public static func findSuitableJava(_ version: MinecraftVersion, manifest: ClientManifest? = nil) -> JavaVirtualMachine? {
+        let minJavaVersion = getMinJavaVersion(version, manifest: manifest)
 
         // 版本满足要求且架构可用的 Java；系统 stub /usr/bin/java 最后兜底
         let usable = DataManager.shared.javaVirtualMachines.filter {

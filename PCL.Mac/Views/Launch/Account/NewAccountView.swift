@@ -208,13 +208,13 @@ fileprivate struct NewMicrosoftAccountView: View {
                     }
                     .frame(height: 35)
                     .fixedSize(horizontal: true, vertical: false)
-                    MyButton(text: "登录") {
+                    MyButton(text: state.isSigningIn ? "登录中…" : "登录") {
+                        if state.isSigningIn { return }
                         if !NetworkTest.shared.hasNetworkConnection() {
                             HintManager.default.add(.init(text: "请先联网！", type: .critical))
                             return
                         }
-                        
-                        if state.isSigningIn { return }
+
                         state.isSigningIn = true
                         Task {
                             await signIn()
@@ -230,6 +230,9 @@ fileprivate struct NewMicrosoftAccountView: View {
     }
     
     private func signIn() async {
+        defer {
+            DispatchQueue.main.async { state.isSigningIn = false }
+        }
         do {
             guard let authToken = try await MsLogin.signIn() else {
                 HintManager.default.add(.init(text: "登录失败！", type: .critical))

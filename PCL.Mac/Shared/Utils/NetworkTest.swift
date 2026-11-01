@@ -11,24 +11,26 @@ import Network
 public class NetworkTest {
     public static let shared = NetworkTest()
     private let monitor = NWPathMonitor()
-    
-    public func hasNetworkConnection(timeout: TimeInterval = 2.0) -> Bool {
-        let monitor = NWPathMonitor()
-        let group = DispatchGroup()
-        var hasConnection: Bool = false
+    private let lock = NSLock()
+    private var isConnected: Bool = false
 
-        group.enter()
-        monitor.pathUpdateHandler = { path in
-            hasConnection = (path.status == .satisfied)
-            group.leave()
-            monitor.cancel()
+    private init() {
+        monitor.pathUpdateHandler = { [weak self] path in
+            guard let self else { return }
+            self.lock.lock()
+            self.isConnected = (path.status == .satisfied)
+            self.lock.unlock()
         }
         monitor.start(queue: DispatchQueue.global(qos: .userInitiated))
+        lock.lock()
+        isConnected = (monitor.currentPath.status == .satisfied)
+        lock.unlock()
+    }
 
-        let waitResult = group.wait(timeout: .now() + timeout)
-        if waitResult == .timedOut {
-            monitor.cancel()
-        }
-        return hasConnection
+    public func hasNetworkConnection(timeout: TimeInterval = 2.0) -> Bool {
+        lock.lock()
+        let connected = isConnected
+        lock.unlock()
+        return connected
     }
 }

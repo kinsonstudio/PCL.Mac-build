@@ -50,11 +50,21 @@ public class JavaVirtualMachine: Identifiable, Equatable {
         }
         return isJdk ? "JDK" : "JRE"
     }
-    
-    private func asyncDetectVersion() async {
-        (version, displayVersion) = JavaVirtualMachine.detectVersion(url: executableURL)
+
+    /// 从版本字符串解析主版本号，兼容 1.8.0_xxx / 17.0.20 / 25.0.4.1
+    private static func majorVersion(from displayVersion: String) -> Int? {
+        let parts = displayVersion.split(separator: ".")
+        guard !parts.isEmpty else { return nil }
+        let token: Substring
+        if displayVersion.hasPrefix("1.") {
+            token = parts.count > 1 ? parts[1] : parts[0]
+        } else {
+            token = parts[0]
+        }
+        let digits = token.split(separator: "-").first ?? token
+        return Int(digits)
     }
-    
+
     public static func of(_ executableURL: URL, _ addedByUser: Bool? = nil) -> JavaVirtualMachine {
         // 判断文件是否合法
         guard FileManager.default.fileExists(atPath: executableURL.path) else {
@@ -62,10 +72,10 @@ public class JavaVirtualMachine: Identifiable, Equatable {
             return Error
         }
         guard executableURL.isFileURL else {
-            err("\(executableURL.path()) 不是文件!")
+            err("\(executableURL) 不是文件!")
             return Error
         }
-        
+
         // 设置架构及调用方式
         let arch: Architecture = .getArchOfFile(executableURL)
         let callMethod: CallMethod?
@@ -76,7 +86,7 @@ public class JavaVirtualMachine: Identifiable, Equatable {
         } else {
             callMethod = .incompatible
         }
-        
+
         // 获取版本信息
         let releaseURLs = [
             executableURL.parent().parent().appending(path: "release"),
@@ -84,41 +94,41 @@ public class JavaVirtualMachine: Identifiable, Equatable {
         ]
         var version: Int = 0
         var displayVersion: String = "未知"
-        var asyncDetect: Bool = true
+        var releaseParsed = false
         var implementor: String?
-        
+
         for releaseURL in releaseURLs {
             if FileManager.default.fileExists(atPath: releaseURL.path) {
                 let release = PropertiesParser.parse(fileURL: releaseURL)
-                if let javaVersion = release["JAVA_VERSION"] {
-                    displayVersion = javaVersion
-                    version = Int(displayVersion.split(separator: ".")[displayVersion.starts(with: "1.") ? 1 : 0])!
-                } else {
-                    err("加载 \(executableURL.path()) 时出现错误: 未找到键 JAVA_VERSION 对应的值")
-                }
                 implementor = release["IMPLEMENTOR"]
-                asyncDetect = false
+                if let javaVersion = release["JAVA_VERSION"],
+                   let major = majorVersion(from: javaVersion) {
+                    displayVersion = javaVersion
+                    version = major
+                    releaseParsed = true
+                } else {
+                    err("加载 \(executableURL.path) 时出现错误: 未找到可解析的 JAVA_VERSION 对应的值")
+                }
                 break
             }
         }
-        
+
+        // release 文件缺失或解析失败：同步运行 java -version 兜底，避免后台异步导致版本号暂时为 0
+        if !releaseParsed {
+            let detected = detectVersion(url: executableURL)
+            version = detected.version
+            displayVersion = detected.displayVersion
+        }
+
         // 检查是否为 JDK
         var isJdk: Bool? = nil
         if executableURL.path != "/usr/bin/java" {
-            if FileManager.default.fileExists(atPath: executableURL.parent().appending(path: "javac").path) {
-                isJdk = true
-            } else {
-                isJdk = false
-            }
+            isJdk = FileManager.default.fileExists(atPath: executableURL.parent().appending(path: "javac").path)
         }
-        
-        let jvm = JavaVirtualMachine(arch: arch, version: version, displayVersion: displayVersion, implementor: implementor, executableURL: executableURL, callMethod: callMethod ?? .incompatible, isJdk: isJdk, _isAddedByUser: addedByUser)
-        if asyncDetect {
-            Task {
-                await jvm.asyncDetectVersion()
-            }
-        }
-        return jvm
+
+        log("识别 Java: \(displayVersion) (主版本 \(version)), 架构 \(arch), 调用方式 \(callMethod?.getDisplayName() ?? "未知"), 路径 \(executableURL.path)")
+
+        return JavaVirtualMachine(arch: arch, version: version, displayVersion: displayVersion, implementor: implementor, executableURL: executableURL, callMethod: callMethod ?? .incompatible, isJdk: isJdk, _isAddedByUser: addedByUser)
     }
     
     private static func detectVersion(url: URL) -> (version: Int, displayVersion: String) {

@@ -10,7 +10,8 @@ import SwiftUI
 fileprivate struct LeftTab: View {
     @ObservedObject private var dataManager: DataManager = .shared
     @ObservedObject private var accountManager: AccountManager = .shared
-    
+    @ObservedObject private var launchState: LaunchState = .shared
+
     @State private var instance: MinecraftInstance?
     
     private var accountView: some View {
@@ -50,11 +51,33 @@ fileprivate struct LeftTab: View {
             accountView
             Spacer()
             if let instance = self.instance {
-                MyButton(text: "启动游戏", descriptionText: instance.name, foregroundStyle: AppSettings.shared.theme.getTextStyle()) {
+                let buttonText: String
+                let descriptionText: String?
+                switch launchState.phase {
+                case .preparing:
+                    buttonText = "正在准备…"
+                    descriptionText = launchState.statusText.isEmpty ? "正在检查环境与资源……" : launchState.statusText
+                case .waitingWindow:
+                    buttonText = "等待窗口拉起"
+                    descriptionText = launchState.statusText.isEmpty ? "游戏已启动，正在等待窗口拉起……" : launchState.statusText
+                case .windowShown:
+                    buttonText = "游戏运行中"
+                    descriptionText = "游戏窗口已出现"
+                case .finished, .idle:
+                    buttonText = "启动游戏"
+                    descriptionText = instance.name
+                }
+
+                MyButton(text: buttonText, descriptionText: descriptionText, foregroundStyle: AppSettings.shared.theme.getTextStyle()) {
+                    if launchState.isBusy { return }
                     let launchOptions: LaunchOptions = .init()
-                    
+
                     Task {
-                        guard await launchPrecheck(launchOptions) else { return }
+                        LaunchState.shared.set(.preparing, "正在检查环境与资源……")
+                        guard await launchPrecheck(launchOptions) else {
+                            LaunchState.shared.reset()
+                            return
+                        }
                         debug("正在启动游戏")
                         await instance.launch(launchOptions)
                     }
@@ -89,6 +112,7 @@ fileprivate struct LeftTab: View {
         .frame(width: 300)
         .foregroundStyle(Color(hex: 0x343D4A))
         .onAppear {
+            LaunchState.shared.reset()
             if let directory = AppSettings.shared.currentMinecraftDirectory,
                let defaultInstance = AppSettings.shared.defaultInstance,
                let instance = MinecraftInstance.create(directory, directory.versionsURL.appending(path: defaultInstance)) {

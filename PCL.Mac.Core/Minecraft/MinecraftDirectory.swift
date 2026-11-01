@@ -14,6 +14,8 @@ public class MinecraftDirectory: Codable, Identifiable, Hashable {
     public let rootURL: URL
     public var name: String
     public var instances: [InstanceInfo] = []
+    /// 正在扫描实例，防止重复触发互相清空列表
+    public private(set) var isScanning: Bool = false
     
     public func hash(into hasher: inout Hasher) {
         hasher.combine(rootURL)
@@ -48,13 +50,26 @@ public class MinecraftDirectory: Codable, Identifiable, Hashable {
     }
     
     public func loadInnerInstances(callback: (([InstanceInfo]) -> Void)? = nil) {
+        guard !isScanning else {
+            log("[实例扫描] 已有扫描在进行中，跳过重复触发")
+            return
+        }
         instances.removeAll()
+        isScanning = true
         Task {
+            defer {
+                DispatchQueue.main.async {
+                    self.isScanning = false
+                }
+            }
             do {
                 let contents = try FileManager.default.contentsOfDirectory(at: versionsURL, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])
                 let instanceDirectories = contents.filter { url in
                     (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
                 }
+                log("[实例扫描] 目录 \(versionsURL.path)，发现 \(instanceDirectories.count) 个子目录")
+
+                var createdCount = 0
                 for instanceDirectory in instanceDirectories {
                     if let instance = MinecraftInstance.create(self, instanceDirectory) {
                         let info = InstanceInfo(
@@ -68,8 +83,12 @@ public class MinecraftDirectory: Codable, Identifiable, Hashable {
                         DispatchQueue.main.async {
                             self.instances.append(info)
                         }
+                        createdCount += 1
+                    } else {
+                        warn("[实例扫描] 无法识别版本目录: \(instanceDirectory.lastPathComponent)")
                     }
                 }
+                log("[实例扫描] 成功加载 \(createdCount) 个实例")
                 DispatchQueue.main.async {
                     callback?(self.instances)
                     DataManager.shared.objectWillChange.send()

@@ -37,9 +37,13 @@ public class LaunchPrecheck {
         }
         
         if let suitableJava {
-            if instance.config.javaURL == nil
-                || !FileManager.default.fileExists(atPath: instance.config.javaURL.path) {
+            let currentPath = instance.config.javaURL?.path
+            let needsRefresh = currentPath == nil
+                || !FileManager.default.fileExists(atPath: currentPath!)
+                || currentPath == "/usr/bin/java"
+            if needsRefresh {
                 instance.config.javaURL = suitableJava.executableURL
+                instance.saveConfig()
             }
             let javaArchitecture = Architecture.getArchOfFile(instance.config.javaURL!)
             

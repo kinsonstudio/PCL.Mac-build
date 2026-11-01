@@ -21,6 +21,9 @@ public class MinecraftLauncher {
     }
     
     public func launch(_ options: LaunchOptions, _ callback: @MainActor @escaping (Int32) -> Void = { _ in }) {
+        // 启动前确保游戏默认简体中文
+        ensureChineseLanguage()
+
         let process = Process()
         process.executableURL = options.javaPath
         process.environment = ProcessInfo.processInfo.environment
@@ -33,18 +36,19 @@ public class MinecraftLauncher {
         debug(command)
         MinecraftCrashHandler.lastLaunchCommand = command
         process.currentDirectoryURL = instance.runningDirectory
-        
+
         if instance.config.qualityOfService.rawValue == 0 {
             instance.config.qualityOfService = .default
         }
         process.qualityOfService = instance.config.qualityOfService
-        
+
         instance.process = process
+        LaunchState.shared.set(.waitingWindow, "游戏已启动，正在等待窗口拉起……")
         do {
             let pipe = Pipe()
             process.standardOutput = pipe
             process.standardError = pipe
-            
+
             let logHandle = try FileHandle(forWritingTo: logURL)
             pipe.fileHandleForReading.readabilityHandler = { handle in
                 for line in String(data: handle.availableData, encoding: .utf8)!.split(separator: "\n") {
@@ -53,29 +57,32 @@ public class MinecraftLauncher {
                     logHandle.seekToEndOfFile()
                 }
             }
-            
+
             try process.run()
-            
+
             Task { // 轮询判断窗口是否出现
                 while process.isRunning {
                     let options = CGWindowListOption(arrayLiteral: .excludeDesktopElements, .optionOnScreenOnly)
                     guard let windowInfoList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
-                        throw NSError()
+                        try await Task.sleep(for: .seconds(1))
+                        continue
                     }
-                    
+
                     for info in windowInfoList {
                         if let windowPID = info["kCGWindowOwnerPID"] as? Int32,
                            windowPID == process.processIdentifier {
                             log("窗口已出现")
+                            LaunchState.shared.set(.windowShown, "游戏窗口已出现")
                             return
                         }
                     }
                     try await Task.sleep(for: .seconds(1))
                 }
             }
-            
+
             process.waitUntilExit()
             log("\(instance.name) 进程已退出, 退出代码 \(process.terminationStatus)")
+            LaunchState.shared.set(.finished, "游戏已退出")
             if process.terminationStatus == 0 {
                 debug("检测到退出代码为 0，已删除日志")
                 try? FileManager.default.removeItem(at: self.logURL)
@@ -86,6 +93,34 @@ public class MinecraftLauncher {
             instance.process = nil
         } catch {
             err(error.localizedDescription)
+            LaunchState.shared.reset()
+        }
+    }
+
+    /// 启动前把 options.txt 的语言固定为简体中文；文件缺失则创建最小配置。
+    private func ensureChineseLanguage() {
+        let optionsURL = instance.runningDirectory.appending(path: "options.txt")
+        let targetLang = "zh_cn"
+
+        if FileManager.default.fileExists(atPath: optionsURL.path) {
+            guard var content = try? String(contentsOf: optionsURL, encoding: .utf8) else { return }
+            var hasLang = false
+            var lines = content.components(separatedBy: .newlines)
+            for i in 0..<lines.count {
+                if lines[i].hasPrefix("lang:") {
+                    lines[i] = "lang:\(targetLang)"
+                    hasLang = true
+                    break
+                }
+            }
+            if !hasLang {
+                lines.append("lang:\(targetLang)")
+            }
+            content = lines.joined(separator: "\n")
+            try? content.data(using: .utf8)?.write(to: optionsURL, options: .atomic)
+        } else {
+            try? FileManager.default.createDirectory(at: instance.runningDirectory, withIntermediateDirectories: true)
+            try? "lang:\(targetLang)\n".data(using: .utf8)?.write(to: optionsURL, options: .atomic)
         }
     }
     
@@ -100,15 +135,26 @@ public class MinecraftLauncher {
             "version_name": instance.name,
             "authlib_injector_path": SharedConstants.shared.authlibInjectorURL.path
         ]
-        
+
         var args: [String] = [
             "-Xmx\(instance.config.maxMemory)m",
             "-Djna.tmpdir=${natives_directory}"
         ]
-        
+
+        // HMCL 风格 G1GC 调优：降低游戏运行中的 GC 停顿，缓解卡顿
+        args.append(contentsOf: [
+            "-XX:+UseG1GC",
+            "-XX:+UnlockExperimentalVMOptions",
+            "-XX:G1NewSizePercent=20",
+            "-XX:G1ReservePercent=20",
+            "-XX:MaxGCPauseMillis=50",
+            "-XX:+DisableExplicitGC",
+            "-XX:-UseAdaptiveSizePolicy"
+        ])
+
         args.insert(contentsOf: options.yggdrasilArguments, at: 0)
         args.append(contentsOf: instance.manifest.getArguments().getAllowedJVMArguments())
-        
+
         return Util.replaceTemplateStrings(args, with: values)
     }
     
@@ -138,7 +184,10 @@ public class MinecraftLauncher {
             "auth_access_token": options.accessToken,
             "user_type": "msa",
             "version_type": "PCL.Mac \(SharedConstants.shared.version)",
-            "user_properties": "\"{}\""
+            "user_properties": "\"{}\"",
+            // 离线账号没有这些字段，补空串避免命令行残留未替换的模板占位符
+            "clientid": "",
+            "auth_xuid": ""
         ]
         
         var args: [String] = []
@@ -160,6 +209,41 @@ public class MinecraftLauncher {
     }
 }
 
+public enum LaunchPhase: Equatable {
+    /// 空闲，可点击启动
+    case idle
+    /// 正在预检与资源完整性检查
+    case preparing
+    /// 游戏进程已拉起，正在等待游戏窗口出现
+    case waitingWindow
+    /// 游戏窗口已出现
+    case windowShown
+    /// 游戏进程已退出
+    case finished
+}
+
 public class LaunchState: ObservableObject {
-    @Published public var isLaunched: Bool = false
+    public static let shared = LaunchState()
+
+    @Published public var phase: LaunchPhase = .idle
+    @Published public var statusText: String = ""
+
+    /// 是否处于不可重复点击的启动流程中
+    public var isBusy: Bool {
+        phase == .preparing || phase == .waitingWindow
+    }
+
+    public func reset() {
+        DispatchQueue.main.async {
+            self.phase = .idle
+            self.statusText = ""
+        }
+    }
+
+    public func set(_ phase: LaunchPhase, _ statusText: String = "") {
+        DispatchQueue.main.async {
+            self.phase = phase
+            self.statusText = statusText
+        }
+    }
 }

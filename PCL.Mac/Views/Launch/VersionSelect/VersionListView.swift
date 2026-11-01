@@ -171,7 +171,7 @@ struct VersionListView: View {
     
     private func loadInstances(_ directory: MinecraftDirectory) {
         AppSettings.shared.currentMinecraftDirectory = directory
-        if directory.instances.isEmpty {
+        if directory.instances.isEmpty && !directory.isScanning {
             directory.loadInnerInstances()
         }
     }

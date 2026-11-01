@@ -144,24 +144,28 @@ public class MinecraftInstance: Identifiable, Equatable, Hashable {
     
     public static func findSuitableJava(_ version: MinecraftVersion) -> JavaVirtualMachine? {
         let minJavaVersion = getMinJavaVersion(version)
-        var suitableJava: JavaVirtualMachine?
-        for jvm in DataManager.shared.javaVirtualMachines.sorted(by: { $0.version < $1.version }) {
-            if jvm.version < minJavaVersion { continue }
-            
-            suitableJava = jvm
-            
-            if jvm.callMethod == .direct {
-                break
-            }
+
+        // 版本满足要求且架构可用的 Java；系统 stub /usr/bin/java 最后兜底
+        let usable = DataManager.shared.javaVirtualMachines.filter {
+            $0.version >= minJavaVersion && $0.callMethod != .incompatible
         }
-        
-        if suitableJava == nil {
-            warn("未找到可用 Java")
-            debug("版本: \(version.displayName)")
-            debug("最低 Java 版本: \(minJavaVersion)")
+        let nonStub = usable.filter { $0.executableURL.path != "/usr/bin/java" }
+
+        // 优先原生 / 通用二进制（direct），其次转译（transition）；同组内选版本刚好满足的最低版本
+        let direct = nonStub.filter { $0.callMethod == .direct }.sorted { $0.version < $1.version }
+        if let best = direct.first { return best }
+
+        let transition = nonStub.filter { $0.callMethod == .transition }.sorted { $0.version < $1.version }
+        if let best = transition.first { return best }
+
+        if let stub = usable.first(where: { $0.executableURL.path == "/usr/bin/java" }) {
+            return stub
         }
-        
-        return suitableJava
+
+        warn("未找到可用 Java")
+        debug("版本: \(version.displayName)")
+        debug("最低 Java 版本: \(minJavaVersion)")
+        return nil
     }
     
     public func launch(_ launchOptions: LaunchOptions) async {

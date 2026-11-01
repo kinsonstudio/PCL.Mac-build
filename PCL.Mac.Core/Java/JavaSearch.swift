@@ -32,28 +32,61 @@ public class JavaSearch {
         var executableURLs: [URL] = [
             URL(fileURLWithPath: "/usr/bin/java")
         ]
-        
+
         let javaDirectoryParents = [
             "/Library/Java/JavaVirtualMachines",
             "~/Library/Java/JavaVirtualMachines",
-            "/opt/homebrew/opt/java/libexec"
+            "/opt/homebrew/opt/java/libexec",
+            "/opt/homebrew/Cellar",
+            "~/.sdkman/candidates/java"
         ]
             .map { URL(fileURLWithUserPath: $0).path }
             .filter { FileManager.default.fileExists(atPath: $0) }
-        
+
         for javaDirectoryParent in javaDirectoryParents {
             let parentURL = URL(fileURLWithPath: javaDirectoryParent)
-            for javaDirectory in try FileManager.default.contentsOfDirectory(atPath: javaDirectoryParent) {
-                let javaHomeURL = parentURL.appending(path: javaDirectory).appending(path: "Contents").appending(path: "Home")
-                executableURLs.append(javaHomeURL.appending(path: "bin").appending(path: "java"))
-                executableURLs.append(javaHomeURL.appending(path: "jre").appending(path: "bin").appending(path: "java"))
+            guard let javaDirectories = try? FileManager.default.contentsOfDirectory(atPath: javaDirectoryParent) else { continue }
+
+            for javaDirectory in javaDirectories {
+                // /opt/homebrew/Cellar 下是 openjdk@21/1.21.0 这种两层结构，需要再往下找 Contents/Home
+                let candidates: [URL] = [
+                    parentURL.appending(path: javaDirectory).appending(path: "Contents").appending(path: "Home"),
+                    parentURL.appending(path: javaDirectory)
+                ]
+                for javaHomeURL in candidates {
+                    let binJava = javaHomeURL.appending(path: "bin").appending(path: "java")
+                    if FileManager.default.fileExists(atPath: binJava.path) {
+                        executableURLs.append(binJava)
+                    }
+                    let jreJava = javaHomeURL.appending(path: "jre").appending(path: "bin").appending(path: "java")
+                    if FileManager.default.fileExists(atPath: jreJava.path) {
+                        executableURLs.append(jreJava)
+                    }
+                }
+
+                // Cellar 两层：openjdk@21/1.21.0/Contents/Home
+                let nested = parentURL.appending(path: javaDirectory)
+                if let nestedDirs = try? FileManager.default.contentsOfDirectory(atPath: nested.path) {
+                    for nestedDir in nestedDirs {
+                        let javaHomeURL = nested.appending(path: nestedDir).appending(path: "Contents").appending(path: "Home")
+                        let binJava = javaHomeURL.appending(path: "bin").appending(path: "java")
+                        if FileManager.default.fileExists(atPath: binJava.path) {
+                            executableURLs.append(binJava)
+                        }
+                    }
+                }
             }
         }
-        
-        return executableURLs
-            .filter { FileManager.default.fileExists(atPath: $0.path)}
+
+        // 去重，避免同一 java 路径被重复收录
+        let uniqueURLs = Array(Set(executableURLs.filter { FileManager.default.fileExists(atPath: $0.path) }))
+
+        let result = uniqueURLs
             .map { JavaVirtualMachine.of($0) }
             .filter { !$0.isError }
+
+        log("扫描到 \(result.count) 个可用 Java")
+        return result
     }
     
     private static func isValidJvmDirectory(_ path: URL) -> Bool {

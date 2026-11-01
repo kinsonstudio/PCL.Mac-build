@@ -188,9 +188,9 @@ fileprivate struct NewMicrosoftAccountView: View {
         StaticMyCard(title: "正版账号") {
             VStack(alignment: .leading) {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("点击登录后会自动跳转到微软登录页面")
-                    Text("请将剪切板中的内容粘贴至页面的输入框内，并登录您购买 Minecraft 时的微软账号")
-                    Text("登录后出现“PCL-CE”而非“PCL.Mac”是正常的，因为 PCL.Mac 还没有自己的 Client ID qwq")
+                    Text("点击登录后会自动打开微软登录页面")
+                    Text("请将剪切板中已复制的用户码粘贴到页面输入框，再登录你购买 Minecraft 的微软账号")
+                    Text("授权页面显示“Prism Launcher”是正常的，PCL.Mac 暂时借用其公开 Client ID，尚未使用自己的应用 ID")
                 }
                 .font(.custom("PCL English", size: 14))
                 .foregroundStyle(Color("TextColor"))

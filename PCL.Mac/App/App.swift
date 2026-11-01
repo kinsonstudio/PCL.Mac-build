@@ -7,22 +7,15 @@
 
 import SwiftUI
 import AppKit
-import ObjectiveC
-
-/// 允许 borderless 自定义窗口成为 key / main 窗口，否则 TextField 无法接收键盘输入
-final class KeyableWindow: NSWindow {
-    override var canBecomeKey: Bool { true }
-    override var canBecomeMain: Bool { true }
-}
 
 @main
 struct PCL_MacApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    
+
     init() {
         _ = AppStartTracker.shared
     }
-    
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -35,14 +28,14 @@ struct PCL_MacApp: App {
                     DataManager.shared.router.append(.about)
                 }
             }
-            
+
             CommandGroup(replacing: .appSettings) {
                 Button("设置") {
                     DataManager.shared.router.setRoot(.settings)
                     DataManager.shared.router.append(.personalization)
                 }
             }
-            
+
             CommandGroup(replacing: .newItem) { } // 修复 #21
         }
         .windowStyle(.hiddenTitleBar) // 避免刚启动时闪一下标题栏
@@ -53,21 +46,26 @@ struct WindowAccessor: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let nsView = NSView()
         DispatchQueue.main.async {
-            if let window = nsView.window {
-                // 替换为可成为 key 窗口的子类，保证输入框能接收键盘
-                object_setClass(window, KeyableWindow.self)
-                if AppSettings.shared.showPclMacPopup {
-                    window.setContentSize(NSSize(width: 815, height: 465))
-                }
-                window.isOpaque = false
-                window.backgroundColor = NSColor.clear
-                window.styleMask = [.borderless, .miniaturizable, .resizable]
-                
-                if let contentView = window.contentView {
-                    contentView.wantsLayer = true
-                    contentView.layer?.cornerRadius = 10
-                    contentView.layer?.masksToBounds = true
-                }
+            guard let window = nsView.window else { return }
+            if AppSettings.shared.showPclMacPopup {
+                window.setContentSize(NSSize(width: 815, height: 465))
+            }
+            window.isOpaque = false
+            window.backgroundColor = NSColor.clear
+            // 必须保留 .titled，窗口才能成为 key 窗口、TextField 才能接收键盘；
+            // 标题栏由 .windowStyle(.hiddenTitleBar) + 透明标题栏隐藏，外观与原无边框一致
+            window.styleMask = [.titled, .miniaturizable, .resizable, .fullSizeContentView]
+            window.titleVisibility = .hidden
+            window.titlebarAppearsTransparent = true
+            // 隐藏系统标准按钮，使用界面内自定义的关闭 / 最小化按钮
+            window.standardWindowButton(.closeButton)?.isHidden = true
+            window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+            window.standardWindowButton(.zoomButton)?.isHidden = true
+
+            if let contentView = window.contentView {
+                contentView.wantsLayer = true
+                contentView.layer?.cornerRadius = 10
+                contentView.layer?.masksToBounds = true
             }
         }
         return nsView

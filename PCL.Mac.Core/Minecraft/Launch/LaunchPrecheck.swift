@@ -38,22 +38,23 @@ public class LaunchPrecheck {
             return .failure(.invalidMemoryConfiguration)
         }
         
-        guard let suitableJava else {
-            err("[launchPrecheck] 无可用 Java。最低版本: \(minVersion)")
-            return .failure(.noUsableJava(minVersion: minVersion))
-        }
-        
-        // 当前已选 Java 缺失、是系统 stub、或版本不满足需求时，刷新到合适的 JVM
+        // 当前已选 Java：未选择、文件丢失或系统 stub 时才自动挑选；
+        // 用户手动选定的 JDK 一律尊重，不静默切换（版本不达标仅警告，由用户自行决定更换）
         let currentPath = instance.config.javaURL?.path
         let currentJvm = DataManager.shared.javaVirtualMachines.first { $0.executableURL.path == currentPath }
-        let currentVersion = currentJvm?.version ?? 0
-        let needsRefresh = currentPath == nil
-            || !FileManager.default.fileExists(atPath: currentPath!)
-            || currentPath == "/usr/bin/java"
-            || currentVersion < minVersion
-        if needsRefresh {
+        let fileMissing = (currentPath == nil) || !FileManager.default.fileExists(atPath: currentPath!)
+        let isStub = currentPath == "/usr/bin/java"
+        let needsAutoSelect = fileMissing || isStub
+
+        if needsAutoSelect {
+            guard let suitableJava else {
+                err("[launchPrecheck] 无可用 Java。最低版本: \(minVersion)")
+                return .failure(.noUsableJava(minVersion: minVersion))
+            }
             instance.config.javaURL = suitableJava.executableURL
             instance.saveConfig()
+        } else if let currentJvm, currentJvm.version < minVersion {
+            warn("[launchPrecheck] 所选 Java 主版本 \(currentJvm.version) 低于该版本需要的 \(minVersion)，可能无法启动；如需更换请在 Java 设置中手动选择")
         }
         let javaArchitecture = Architecture.getArchOfFile(instance.config.javaURL!)
         

@@ -6,6 +6,14 @@
 //
 
 import SwiftUI
+import AppKit
+import ObjectiveC
+
+/// 允许 borderless 自定义窗口成为 key / main 窗口，否则 TextField 无法接收键盘输入
+final class KeyableWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
 
 @main
 struct PCL_MacApp: App {
@@ -46,6 +54,8 @@ struct WindowAccessor: NSViewRepresentable {
         let nsView = NSView()
         DispatchQueue.main.async {
             if let window = nsView.window {
+                // 替换为可成为 key 窗口的子类，保证输入框能接收键盘
+                object_setClass(window, KeyableWindow.self)
                 if AppSettings.shared.showPclMacPopup {
                     window.setContentSize(NSSize(width: 815, height: 465))
                 }

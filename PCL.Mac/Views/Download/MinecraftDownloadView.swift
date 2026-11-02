@@ -103,11 +103,12 @@ struct MinecraftDownloadView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: currentDownloadPage == nil)
         .onAppear {
+            guard let manifest = dataManager.versionManifest else { return }
             var versions: [String: [VersionManifest.GameVersion]] = [:]
-            versions["release"] = dataManager.versionManifest!.versions.filter { $0.type == .release }
-            versions["snapshot"] = dataManager.versionManifest!.versions.filter { $0.type == .snapshot || $0.type == .pending }
-            versions["old"] = dataManager.versionManifest!.versions.filter { $0.type == .beta || $0.type == .alpha }
-            versions["april_fool"] = dataManager.versionManifest!.versions.filter { $0.type == .aprilFool }
+            versions["release"] = manifest.versions.filter { $0.type == .release }
+            versions["snapshot"] = manifest.versions.filter { $0.type == .snapshot || $0.type == .pending }
+            versions["old"] = manifest.versions.filter { $0.type == .beta || $0.type == .alpha }
+            versions["april_fool"] = manifest.versions.filter { $0.type == .aprilFool }
             self.versions = versions
         }
     }

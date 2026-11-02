@@ -20,13 +20,7 @@ struct OthersView: View {
             case .debug:
                 DebugView()
             default:
-                // 兜底：纯根路由（理论上 setRoot 已预置默认子路由，不会走到这里）
-                AboutView()
-                    .onAppear {
-                        if dataManager.router.getLast() == .others {
-                            dataManager.router.append(.about)
-                        }
-                    }
+                Spacer()
             }
         }
         .onAppear {

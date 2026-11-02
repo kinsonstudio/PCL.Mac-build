@@ -19,8 +19,7 @@ struct DownloadView: View {
                 ProjectSearchView(type: type)
                     .id(type)
             default:
-                // 兜底：纯根路由（理论上 setRoot 已预置默认子路由，不会走到这里）
-                MinecraftDownloadView()
+                Spacer()
                     .onAppear {
                         if dataManager.router.getLast() == .download {
                             dataManager.router.append(.minecraftDownload)

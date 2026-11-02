@@ -20,13 +20,7 @@ struct SettingsView: View {
             case .otherSettings:
                 OtherSettingsView()
             default:
-                // 兜底：纯根路由（理论上 setRoot 已预置默认子路由，不会走到这里）
-                PersonalizationView()
-                    .onAppear {
-                        if dataManager.router.getLast() == .settings {
-                            dataManager.router.append(.personalization)
-                        }
-                    }
+                Spacer()
             }
         }
         .onAppear {

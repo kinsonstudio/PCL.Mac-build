@@ -151,7 +151,7 @@ struct ProjectDownloadView: View {
         }
         .id(id)
         .onAppear {
-            dataManager.leftTab(0, expectedRoot: .download) { EmptyView() }
+            dataManager.leftTab(0, expectedRoots: [.download, .launch]) { EmptyView() }
         }
         .task(id: id) {
             summary = nil

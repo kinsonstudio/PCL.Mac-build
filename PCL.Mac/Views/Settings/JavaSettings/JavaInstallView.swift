@@ -55,7 +55,7 @@ struct JavaInstallView: View {
         }
         .scrollIndicators(.never)
         .onAppear {
-            dataManager.leftTab(0, expectedRoot: .settings) { EmptyView() }
+            dataManager.leftTab(0, expectedRoots: [.settings]) { EmptyView() }
             search()
         }
     }

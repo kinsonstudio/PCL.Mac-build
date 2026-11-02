@@ -38,7 +38,7 @@ struct VersionSettingsView: View, SubRouteContainer {
             }
         }
         .onAppear {
-            dataManager.leftTab(200, expectedRoot: .launch) {
+            dataManager.leftTab(200, expectedRoots: [.launch]) {
                 VStack(alignment: .leading, spacing: 0) {
                     MyList(
                         root: .versionSettings(instance: instance),

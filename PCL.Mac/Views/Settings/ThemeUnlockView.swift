@@ -68,7 +68,7 @@ struct ThemeUnlockView: View {
             .padding(.horizontal)
         }
         .onAppear {
-            dataManager.leftTab(0, expectedRoot: .settings) { EmptyView() }
+            dataManager.leftTab(0, expectedRoots: [.settings]) { EmptyView() }
         }
     }
 }

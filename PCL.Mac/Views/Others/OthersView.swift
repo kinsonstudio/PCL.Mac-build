@@ -30,7 +30,7 @@ struct OthersView: View {
             }
         }
         .onAppear {
-            dataManager.leftTab(140, expectedRoot: .others) {
+            dataManager.leftTab(140, expectedRoots: [.others]) {
                 VStack(alignment: .leading, spacing: 0) {
                     MyList(
                         root: .others,

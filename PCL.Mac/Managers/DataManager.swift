@@ -63,11 +63,11 @@ class DataManager: ObservableObject {
         }
     }
     
-    func leftTab(_ width: CGFloat, expectedRoot: AppRoute? = nil, _ content: @escaping () -> some View) {
+    func leftTab(_ width: CGFloat, expectedRoots: [AppRoute]? = nil, _ content: @escaping () -> some View) {
         DispatchQueue.main.async {
             // 快速切换根页面时，旧容器 onAppear 排进来的异步闭包可能晚于新容器执行；
-            // 若当前根路由已不是调用方期望的根，直接丢弃，避免旧左侧菜单覆盖新页面。
-            if let expectedRoot, self.router.getRoot() != expectedRoot { return }
+            // 若当前根路由不在调用方期望的根集合内，直接丢弃，避免旧左侧菜单覆盖新页面。
+            if let expectedRoots, !expectedRoots.contains(self.router.getRoot()) { return }
             self.leftTabWidth = width
             self.leftTabContent = AnyView(content())
             self.leftTabId = .init()

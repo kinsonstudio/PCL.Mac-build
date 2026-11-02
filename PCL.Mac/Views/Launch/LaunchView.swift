@@ -241,7 +241,7 @@ struct LaunchView: View {
         }
         .scrollIndicators(.never)
         .onAppear {
-            dataManager.leftTab(310, expectedRoot: .launch) {
+            dataManager.leftTab(310, expectedRoots: [.launch]) {
                 LeftTab()
             }
         }

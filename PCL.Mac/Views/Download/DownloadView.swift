@@ -29,7 +29,7 @@ struct DownloadView: View {
             }
         }
         .onAppear {
-            dataManager.leftTab(170, expectedRoot: .download) {
+            dataManager.leftTab(170, expectedRoots: [.download]) {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Minecraft")
                         .font(.custom("PCL English", size: 12))

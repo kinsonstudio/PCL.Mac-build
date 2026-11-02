@@ -30,7 +30,7 @@ struct SettingsView: View {
             }
         }
         .onAppear {
-            dataManager.leftTab(120, expectedRoot: .settings) {
+            dataManager.leftTab(120, expectedRoots: [.settings]) {
                 VStack(alignment: .leading, spacing: 0) {
                     MyList(
                         root: .settings,

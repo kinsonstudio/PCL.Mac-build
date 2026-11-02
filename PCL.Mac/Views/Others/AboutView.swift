@@ -74,7 +74,7 @@ struct AboutView: View {
                     ProfileCard(
                         imageName: "YiZhiMCQiu",
                         name: "YiZhiMCQiu | Minecraft-温迪",
-                        description: "PCL.Mac 的作者",
+                        description: "PCL.Mac 的原作者",
                         buttonName: "进入主页",
                         buttonURL: "https://github.com/YiZhiMCQiu"
                     )
@@ -90,9 +90,9 @@ struct AboutView: View {
                     ProfileCard(
                         imageName: "kinsonstudio",
                         name: "kinsonstudio",
-                        description: "PCL.Mac 原创作者",
+                        description: "PCL.Mac 后续更新及维护者",
                         buttonName: "进入官网",
-                        buttonURL: "https://taiai.asia"
+                        buttonURL: "https://taiai.asia/kinson.html"
                     )
                 }
                 .padding(.leading)

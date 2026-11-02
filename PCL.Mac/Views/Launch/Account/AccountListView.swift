@@ -78,19 +78,23 @@ fileprivate struct AccountView: View {
                 Spacer()
                 if isHovered {
                     HStack {
-                        Image("RefreshIcon")
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                Task {
-                                    do {
-                                        try await SkinCacheStorage.shared.loadSkin(account: account)
-                                        hint("刷新成功！", .finish)
-                                    } catch {
-                                        hint("无法刷新头像：\(error.localizedDescription)", .critical)
+                        // 离线账号使用内置本地头像，无需联网刷新；微软 / 外置账号保留刷新
+                        if case .offline = account {
+                        } else {
+                            Image("RefreshIcon")
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    Task {
+                                        do {
+                                            try await SkinCacheStorage.shared.loadSkin(account: account)
+                                            hint("刷新成功！", .finish)
+                                        } catch {
+                                            hint("无法刷新头像：\(error.localizedDescription)", .critical)
+                                        }
                                     }
                                 }
-                            }
-                        
+                        }
+
                         Image(systemName: "xmark")
                             .bold()
                             .contentShape(Rectangle())

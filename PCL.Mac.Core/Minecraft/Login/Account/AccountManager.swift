@@ -8,6 +8,10 @@
 import Foundation
 import SwiftyJSON
 
+public enum SkinError: Error {
+    case offlineAvatarIsLocal
+}
+
 public protocol Account: Codable, Identifiable {
     var id: UUID { get }
     var uuid: UUID { get }
@@ -69,7 +73,10 @@ public enum AnyAccount: Account, Identifiable, Equatable {
     public func getSkinData() async throws -> Data {
         let url: URL
         switch self {
-        case .offline(_), .microsoft(_):
+        case .offline:
+            // 离线账号使用本地内置头像，不请求网络皮肤服务
+            throw SkinError.offlineAvatarIsLocal
+        case .microsoft(_):
             url = URL(string: "https://crafatar.com/skins/\(uuid.uuidString.replacingOccurrences(of: "-", with: "").lowercased())")!
         case .yggdrasil(let yggdrasilAccount):
             guard let textures = try await yggdrasilAccount.client.getProfile(id: yggdrasilAccount.uuid).properties["textures"] else {

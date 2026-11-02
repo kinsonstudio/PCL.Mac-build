@@ -122,6 +122,10 @@ struct ContentView: View {
                     )
                     .zIndex(1)
                 AnyView(dataManager.router.getLastView())
+                    // 绑定当前根路由作为稳定身份：顶部导航快速切换根页面时强制卸载旧视图、
+                    // 挂载新视图，避免 SwiftUI 对 AnyView 内异构视图复用旧状态而出现空白；
+                    // 同一根页面内切换子路由时外壳保持复用，不影响原有交互。
+                    .id(dataManager.router.getRoot())
                     .foregroundStyle(Color("TextColor"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }

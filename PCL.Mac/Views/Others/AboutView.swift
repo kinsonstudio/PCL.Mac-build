@@ -11,9 +11,19 @@ fileprivate struct ProfileCard: View {
     let imageName: String
     let name: String
     let description: String
+    let subtitle: String?
     let buttonName: String
     let buttonURL: String
-    
+
+    init(imageName: String, name: String, description: String, subtitle: String? = nil, buttonName: String, buttonURL: String) {
+        self.imageName = imageName
+        self.name = name
+        self.description = description
+        self.subtitle = subtitle
+        self.buttonName = buttonName
+        self.buttonURL = buttonURL
+    }
+
     var body: some View {
         MyListItem {
             HStack {
@@ -22,13 +32,18 @@ fileprivate struct ProfileCard: View {
                     .scaledToFit()
                     .frame(width: 32)
                     .clipShape(Circle())
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(name)
                         .font(.custom("PCL English", size: 14))
                         .foregroundStyle(Color("TextColor"))
                     Text(description)
                         .font(.custom("PCL English", size: 14))
                         .foregroundStyle(Color(hex: 0x8C8C8C))
+                    if let subtitle = subtitle {
+                        Text(subtitle)
+                            .font(.custom("PCL English", size: 12))
+                            .foregroundStyle(Color(hex: 0x8C8C8C))
+                    }
                 }
                 Spacer()
                 MyButton(text: buttonName) {
@@ -70,6 +85,15 @@ struct AboutView: View {
                         description: "当前版本：\(SharedConstants.shared.version)-\(SharedConstants.shared.branch)",
                         buttonName: "查看源代码",
                         buttonURL: "https://github.com/PCL-Community/PCL-Mac"
+                    )
+
+                    ProfileCard(
+                        imageName: "kinsonstudio",
+                        name: "kinsonstudio",
+                        description: "PCL.Mac 原创作者",
+                        subtitle: "持续维护及更新者",
+                        buttonName: "进入官网",
+                        buttonURL: "https://taiai.asia"
                     )
                 }
                 .padding(.leading)

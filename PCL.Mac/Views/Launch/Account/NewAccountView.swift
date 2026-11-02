@@ -16,6 +16,8 @@ class NewAccountViewState: ObservableObject {
     @Published var playerName: String = ""
     @Published var authToken: Holder<AuthToken> = .init(object: nil)
     @Published var isSigningIn: Bool = false
+    /// 离线账号手动挑选的头像索引；nil 表示添加时随机分配
+    @Published var selectedAvatar: Int? = nil
 }
 
 struct NewAccountView: View {
@@ -107,9 +109,16 @@ fileprivate struct NewOfflineAccountView: View {
     @ObservedObject private var dataManager: DataManager = .shared
     @ObservedObject private var accountManager: AccountManager = .shared
     @ObservedObject private var state: NewAccountViewState = StateManager.shared.newAccount
-    
+    @ObservedObject private var settings: AppSettings = .shared
+
     @State private var warningText: String = ""
-    
+    /// 未手动挑选时的随机预览头像
+    @State private var previewIndex: Int = OfflineAvatarLibrary.randomIndex()
+
+    private var displayIndex: Int {
+        state.selectedAvatar ?? previewIndex
+    }
+
     var body: some View {
         StaticMyCard(title: "离线账号") {
             VStack(alignment: .leading, spacing: 10) {
@@ -121,18 +130,58 @@ fileprivate struct NewOfflineAccountView: View {
                         warningText = checkPlayerName(state.playerName)
                     }
                     .onSubmit(addAccount)
+
+                Text("选择头像")
+                    .font(.custom("PCL English", size: 14))
+                    .foregroundStyle(Color("TextColor"))
+
+                HStack(spacing: 16) {
+                    OfflineAvatarPreview(index: displayIndex, size: 58)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(state.selectedAvatar == nil ? "未指定头像，添加时将随机分配" : "已挑选头像")
+                            .font(.custom("PCL English", size: 13))
+                            .foregroundStyle(Color(hex: 0x8C8C8C))
+                        MyButton(text: "随机换一个") {
+                            previewIndex = OfflineAvatarLibrary.randomIndex()
+                            state.selectedAvatar = nil
+                        }
+                        .fixedSize()
+                        .frame(height: 32)
+                    }
+                }
+
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 12) {
+                    ForEach(0..<OfflineAvatarLibrary.count, id: \.self) { index in
+                        OfflineAvatarPreview(index: index, size: 40)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(state.selectedAvatar == index
+                                            ? settings.theme.getAccentColor()
+                                            : Color(hex: 0x8C8C8C, alpha: 0.3),
+                                            lineWidth: state.selectedAvatar == index ? 2.5 : 1)
+                            )
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                state.selectedAvatar = index
+                                previewIndex = index
+                            }
+                    }
+                }
+                .padding(.vertical, 4)
+
                 HStack {
                     Spacer()
                     MyButton(text: "购买 Minecraft") {
                         NSWorkspace.shared.open(URL(string: "https://www.xbox.com/zh-cn/games/store/minecraft-java-bedrock-edition-for-pc/9nxp44l49shj")!)
                     }
                     .fixedSize()
-                    
+
                     MyButton(text: "取消") {
                         state.type = nil
                     }
                     .fixedSize()
-                    
+
                     MyButton(text: "添加", action: addAccount)
                         .fixedSize()
                 }
@@ -143,25 +192,26 @@ fileprivate struct NewOfflineAccountView: View {
         .noAnimation()
         .padding()
     }
-    
+
     private func addAccount() {
         warningText = checkPlayerName(state.playerName)
         if warningText != "" {
             HintManager.default.add(.init(text: warningText, type: .critical))
             return
         }
-        
+
         accountManager.accounts.removeAll(where: { account in
             if case .offline(let offlineAccount) = account {
                 return offlineAccount.name == state.playerName
             }
             return false
         })
-        
-        let account: AnyAccount = .offline(.init(state.playerName))
+
+        let avatarIndex = state.selectedAvatar ?? OfflineAvatarLibrary.randomIndex()
+        let account: AnyAccount = .offline(.init(state.playerName, avatarIndex: avatarIndex))
         accountManager.accounts.append(account)
         accountManager.accountId = account.id
-        
+
         HintManager.default.add(.init(text: "添加成功", type: .finish))
         dataManager.router.removeLast()
         dataManager.router.append(.accountList)

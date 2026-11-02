@@ -19,7 +19,8 @@ struct DownloadView: View {
                 ProjectSearchView(type: type)
                     .id(type)
             default:
-                Spacer()
+                // 兜底：纯根路由（理论上 setRoot 已预置默认子路由，不会走到这里）
+                MinecraftDownloadView()
                     .onAppear {
                         if dataManager.router.getLast() == .download {
                             dataManager.router.append(.minecraftDownload)
@@ -28,7 +29,7 @@ struct DownloadView: View {
             }
         }
         .onAppear {
-            dataManager.leftTab(170) {
+            dataManager.leftTab(170, expectedRoot: .download) {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Minecraft")
                         .font(.custom("PCL English", size: 12))

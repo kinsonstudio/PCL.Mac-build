@@ -15,7 +15,7 @@ struct MultiplayerView: View {
             Text("Multiplayer view")
         }
         .onAppear {
-            dataManager.leftTab(0) { EmptyView() }
+            dataManager.leftTab(0, expectedRoot: .multiplayer) { EmptyView() }
         }
     }
 }

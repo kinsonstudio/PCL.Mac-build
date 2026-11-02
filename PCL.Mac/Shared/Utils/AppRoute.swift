@@ -143,6 +143,18 @@ public class AppRouter: ObservableObject {
     public func setRoot(_ root: AppRoute) {
         path.removeAll()
         path.append(root)
+        // 同步预置默认子路由：避免容器视图挂在纯根路由上时 switch 落到 Spacer 而出现空白。
+        // 各容器 MyList 的默认 append 有 getLast()==root 守卫，不会再重复入栈。
+        switch root {
+        case .download:
+            path.append(.minecraftDownload)
+        case .settings:
+            path.append(.personalization)
+        case .others:
+            path.append(.about)
+        default:
+            break
+        }
     }
     
     public func getLast() -> AppRoute {

@@ -29,7 +29,7 @@ struct VersionSelectView: View, SubRouteContainer {
             }
         }
         .onAppear {
-            dataManager.leftTab(300) {
+            dataManager.leftTab(300, expectedRoot: .launch) {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("文件夹列表")
                         .font(.custom("PCL English", size: 12))

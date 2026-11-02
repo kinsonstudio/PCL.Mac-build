@@ -27,7 +27,7 @@ struct AnnouncementHistoryView: View {
         }
         .scrollIndicators(.never)
         .onAppear {
-            dataManager.leftTab(0) { EmptyView() }
+            dataManager.leftTab(0, expectedRoot: .launch) { EmptyView() }
             announcementManager.loadHistory()
         }
     }

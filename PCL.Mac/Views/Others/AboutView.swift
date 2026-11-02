@@ -91,7 +91,6 @@ struct AboutView: View {
                         imageName: "kinsonstudio",
                         name: "kinsonstudio",
                         description: "PCL.Mac 原创作者",
-                        subtitle: "持续维护及更新者",
                         buttonName: "进入官网",
                         buttonURL: "https://taiai.asia"
                     )

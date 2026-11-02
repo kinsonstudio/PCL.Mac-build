@@ -24,15 +24,15 @@ struct PCL_MacApp: App {
         .commands {
             CommandGroup(replacing: .appInfo) {
                 Button("关于 PCL.Mac") {
+                    // setRoot 已同步预置默认子路由（.about），无需再次 append
                     DataManager.shared.router.setRoot(.others)
-                    DataManager.shared.router.append(.about)
                 }
             }
 
             CommandGroup(replacing: .appSettings) {
                 Button("设置") {
+                    // setRoot 已同步预置默认子路由（.personalization），无需再次 append
                     DataManager.shared.router.setRoot(.settings)
-                    DataManager.shared.router.append(.personalization)
                 }
             }
 

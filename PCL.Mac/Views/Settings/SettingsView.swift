@@ -20,11 +20,17 @@ struct SettingsView: View {
             case .otherSettings:
                 OtherSettingsView()
             default:
-                Spacer()
+                // 兜底：纯根路由（理论上 setRoot 已预置默认子路由，不会走到这里）
+                PersonalizationView()
+                    .onAppear {
+                        if dataManager.router.getLast() == .settings {
+                            dataManager.router.append(.personalization)
+                        }
+                    }
             }
         }
         .onAppear {
-            dataManager.leftTab(120) {
+            dataManager.leftTab(120, expectedRoot: .settings) {
                 VStack(alignment: .leading, spacing: 0) {
                     MyList(
                         root: .settings,

@@ -22,7 +22,7 @@ struct AccountManagementView: View, SubRouteContainer {
             }
         }
         .onAppear {
-            dataManager.leftTab(130) {
+            dataManager.leftTab(130, expectedRoot: .launch) {
                 VStack(alignment: .leading, spacing: 0) {
                     MyList(
                         root: .accountManagement,

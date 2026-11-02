@@ -47,7 +47,6 @@ struct InstanceModsView: View {
                         HStack(spacing: 24) {
                             MyButton(text: "转到下载页面", foregroundStyle: AppSettings.shared.theme.getTextStyle()) {
                                 dataManager.router.setRoot(.download)
-                                dataManager.router.append(.minecraftDownload)
                             }
                             .frame(width: 170, height: 40)
                             
@@ -77,6 +76,8 @@ struct InstanceModsView: View {
                         .frame(width: 120, height: 35)
                         MyButton(text: "下载新资源") {
                             dataManager.router.setRoot(.download)
+                            // setRoot 已预置默认子路由 minecraftDownload，这里要直接进 Mod 搜索，先移除栈底默认项
+                            dataManager.router.removeLast()
                             dataManager.router.append(.projectSearch(type: .mod))
                         }
                         .frame(width: 120, height: 35)

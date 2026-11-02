@@ -16,7 +16,7 @@ func offlineAvatarSkinData(_ index: Int) -> Data? {
     guard let image = NSImage(named: name),
           let tiff = image.tiffRepresentation,
           let rep = NSBitmapImageRep(data: tiff),
-          let png = rep.representation(using: .png, properties: [:]) else { return nil }
+          let png = rep.representation(using: NSBitmapImageRep.RepresentationType.png, properties: [:]) else { return nil }
     return png
 }
 
